@@ -1,0 +1,34 @@
+name: abnormal-mcp
+region: nyc
+
+services:
+  - name: abnormal-mcp
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
+    envs:
+      - key: ABNORMAL_API_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+      - key: MCP_TRANSPORT
+        scope: RUN_TIME
+        value: http
+      - key: AUTH_MODE
+        scope: RUN_TIME
+        value: env
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+      - key: LOG_LEVEL
+        scope: RUN_TIME
+        value: info
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3

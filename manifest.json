@@ -1,0 +1,44 @@
+{
+  "manifest_version": "0.3",
+  "name": "abnormal-mcp",
+  "display_name": "Abnormal Security MCP Server",
+  "version": "1.0.0",
+  "description": "MCP server for Abnormal Security — AI-powered threat detection, case management, and email remediation.",
+  "long_description": "Provides Claude with tools to interact with the Abnormal Security API. Supports listing and inspecting threats, analysing individual emails, triggering remediations, reviewing abuse mailbox reports, and managing security investigation cases.",
+  "author": {
+    "name": "Wyre Technology",
+    "url": "https://github.com/wyre-technology"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wyre-technology/abnormal-mcp"
+  },
+  "license": "Apache-2.0",
+  "keywords": ["abnormal", "abnormal-security", "security", "mcp", "email-security"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "ABNORMAL_API_TOKEN": "${user_config.api_token}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "user_config": {
+    "api_token": {
+      "type": "string",
+      "title": "API Token",
+      "description": "Your Abnormal Security API token. Generate one in the Abnormal portal under Settings > Integrations > API.",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=20.0.0" },
+    "claude_desktop": ">=0.10.0"
+  }
+}
