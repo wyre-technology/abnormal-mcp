@@ -1,6 +1,6 @@
 {
   "name": "@wyre-technology/abnormal-mcp",
-  "version": "0.0.0-semantically-released",
+  "version": "1.0.0",
   "description": "MCP server for Abnormal Security — AI-powered threat detection, case management, and email remediation",
   "type": "module",
   "main": "dist/index.js",
