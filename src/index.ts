@@ -5,8 +5,10 @@
  * MCP server for Abnormal Security — AI-powered threat detection, case
  * management, and email remediation.
  *
- * Implements a decision-tree architecture where tools are dynamically
- * presented based on the selected domain.
+ * All tools are listed upfront so they work with every MCP client, including
+ * remote connectors (claude.ai, mcp-remote) that do not support dynamic
+ * tool-list changes. A helper `abnormal_navigate` tool provides domain
+ * discovery and guidance.
  *
  * Transport:  Set MCP_TRANSPORT=http for HTTP Streamable transport (default: stdio).
  * Auth:       Set AUTH_MODE=gateway for header-based credential injection from
@@ -85,17 +87,25 @@ async function dispatchDomainTool(
 
 // ── Navigation tools ─────────────────────────────────────────────────────────
 
+/**
+ * Navigation / discovery tool - helps the LLM find the right tools
+ *
+ * This is a stateless helper that describes available tools for a domain.
+ * All domain tools are always listed in tools/list regardless of navigation
+ * state, because many MCP clients (claude.ai connectors, mcp-remote) only
+ * fetch the tool list once and do not support notifications/tools/list_changed.
+ */
 const navigateTool: Tool = {
   name: "abnormal_navigate",
   description:
-    "Navigate to a specific domain in Abnormal Security. Call this first to select which area you want to work with. After navigation, domain-specific tools will be available.",
+    "Discover available Abnormal Security tools by domain. Returns tool names and descriptions for the selected domain. All tools are callable at any time — this is a help/discovery aid, not a prerequisite.",
   inputSchema: {
     type: "object",
     properties: {
       domain: {
         type: "string",
         enum: ["threats", "messages", "remediation", "abuse", "cases"],
-        description: `The domain to navigate to:
+        description: `The domain to explore:
 - threats: ${domainDescriptions.threats}
 - messages: ${domainDescriptions.messages}
 - remediation: ${domainDescriptions.remediation}
@@ -107,25 +117,43 @@ const navigateTool: Tool = {
   },
 };
 
-const backTool: Tool = {
-  name: "abnormal_back",
-  description:
-    "Return to domain selection. Use this to switch to a different area of Abnormal Security.",
+/**
+ * Status tool - shows connection status and available domains
+ */
+const statusTool: Tool = {
+  name: "abnormal_status",
+  description: "Show connection status and available domains",
   inputSchema: {
     type: "object",
     properties: {},
   },
 };
 
-// ── Server state ─────────────────────────────────────────────────────────────
+// ── Tool aggregation ─────────────────────────────────────────────────────────
 
-interface ServerState {
-  currentDomain: Domain | null;
+/**
+ * All domain tools, collected once at startup
+ */
+let allDomainTools: Tool[] | null = null;
+
+/**
+ * Load all domain tools (lazy-loaded on first access)
+ */
+function getAllDomainTools(): Tool[] {
+  if (allDomainTools !== null) {
+    return allDomainTools;
+  }
+
+  const domains: Domain[] = ["threats", "messages", "remediation", "abuse", "cases"];
+  const tools: Tool[] = [];
+
+  for (const domain of domains) {
+    tools.push(...getDomainTools(domain));
+  }
+
+  allDomainTools = tools;
+  return tools;
 }
-
-const state: ServerState = {
-  currentDomain: null,
-};
 
 // ── MCP server ────────────────────────────────────────────────────────────────
 
@@ -134,41 +162,49 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
+/**
+ * Handle ListTools requests - always returns ALL tools
+ */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  if (state.currentDomain === null) {
-    return { tools: [navigateTool] };
-  }
-  return { tools: [backTool, ...getDomainTools(state.currentDomain)] };
+  const domainTools = getAllDomainTools();
+  return { tools: [navigateTool, statusTool, ...domainTools] };
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    // Navigation
+    // Handle navigation / discovery helper
     if (name === "abnormal_navigate") {
       const { domain } = args as { domain: Domain };
-      state.currentDomain = domain;
-      const toolNames = getDomainTools(domain)
-        .map((t) => t.name)
-        .join(", ");
+
+      const tools = getDomainTools(domain);
+      const toolSummary = tools
+        .map((t) => `- ${t.name}: ${t.description}`)
+        .join("\n");
+
       return {
         content: [
           {
             type: "text",
-            text: `Navigated to ${domain} domain. Available tools: ${toolNames}`,
+            text: `${domainDescriptions[domain]}\n\nAvailable tools:\n${toolSummary}\n\nYou can call any of these tools directly.`,
           },
         ],
       };
     }
 
-    if (name === "abnormal_back") {
-      state.currentDomain = null;
+    if (name === "abnormal_status") {
+      const authMode = process.env.AUTH_MODE === "gateway" ? "gateway" : "env";
+      const hasToken = process.env.ABNORMAL_API_TOKEN ? "configured" : "NOT CONFIGURED";
+      const credStatus = authMode === "gateway"
+        ? "Gateway mode (Authorization header)"
+        : `Environment mode (${hasToken})`;
+
       return {
         content: [
           {
             type: "text",
-            text: "Returned to domain selection. Use abnormal_navigate to select a domain: threats, messages, remediation, abuse, cases",
+            text: `Abnormal Security MCP Server Status\n\nCredentials: ${credStatus}\nAvailable domains: threats, messages, remediation, abuse, cases\n\nAll tools are available at all times. Use abnormal_navigate to discover tools by domain.`,
           },
         ],
       };
@@ -197,7 +233,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: "text",
-          text: `Unknown tool: ${name}. Use abnormal_navigate to select a domain first.`,
+          text: `Unknown tool: ${name}. Use abnormal_navigate to discover available tools by domain.`,
         },
       ],
       isError: true,
