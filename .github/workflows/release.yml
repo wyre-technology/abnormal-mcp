@@ -134,12 +134,12 @@ jobs:
           push: true
           tags: |
             ghcr.io/wyre-technology/abnormal-mcp:latest
-            ghcr.io/wyre-technology/abnormal-mcp:v${{ steps.version.outputs.version }}
+            ghcr.io/wyre-technology/abnormal-mcp:v${{ needs.release.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ steps.version.outputs.version }}
+            VERSION=${{ needs.release.outputs.version }}
             COMMIT_SHA=${{ github.sha }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
 
