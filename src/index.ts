@@ -214,19 +214,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const toolArgs = (args ?? {}) as Record<string, unknown>;
 
     if (name.startsWith("abnormal_threats_")) {
-      return dispatchDomainTool("threats", name, toolArgs);
+      return await dispatchDomainTool("threats", name, toolArgs);
     }
     if (name.startsWith("abnormal_messages_")) {
-      return dispatchDomainTool("messages", name, toolArgs);
+      return await dispatchDomainTool("messages", name, toolArgs);
     }
     if (name.startsWith("abnormal_remediation_")) {
-      return dispatchDomainTool("remediation", name, toolArgs);
+      return await dispatchDomainTool("remediation", name, toolArgs);
     }
     if (name.startsWith("abnormal_abuse_")) {
-      return dispatchDomainTool("abuse", name, toolArgs);
+      return await dispatchDomainTool("abuse", name, toolArgs);
     }
     if (name.startsWith("abnormal_cases_")) {
-      return dispatchDomainTool("cases", name, toolArgs);
+      return await dispatchDomainTool("cases", name, toolArgs);
     }
 
     return {
