@@ -19,6 +19,9 @@ RUN npm run build
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS production
 
+# Pull latest Alpine package fixes (e.g. OpenSSL) even when the base layer is cached
+RUN apk -U upgrade --no-cache
+
 RUN addgroup -g 1001 -S abnormal && \
     adduser -S abnormal -u 1001 -G abnormal
 
