@@ -30,6 +30,9 @@ COPY --from=builder /app/node_modules ./node_modules
 
 RUN npm prune --omit=dev && npm cache clean --force
 
+# Remove the npm CLI from the production image (not needed at runtime; clears Trivy CVEs)
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 RUN mkdir -p /app/logs && chown -R abnormal:abnormal /app
 
 USER abnormal
