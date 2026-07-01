@@ -1,12 +1,14 @@
 /**
  * Abnormal Security HTTP client utility.
  *
- * Abnormal Security uses Bearer token auth. In gateway mode the gateway
- * injects the pre-built Authorization header directly (e.g. "Bearer <token>").
- * The env var ABNORMAL_API_TOKEN holds the raw token; the client prepends
- * "Bearer " when building the Authorization header.
+ * Credentials are request-scoped via AsyncLocalStorage in gateway/HTTP mode.
+ * In stdio/single-tenant mode the env fallback (ABNORMAL_API_TOKEN) is used.
+ *
+ * NEVER mutate process.env in the request path — use runWithCredentials() to
+ * carry per-request credentials through the async call chain instead.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { logger } from "./logger.js";
 
 export interface AbnormalCredentials {
@@ -16,13 +18,26 @@ export interface AbnormalCredentials {
 /** Base URL for the Abnormal Security API */
 export const ABNORMAL_BASE_URL = "https://api.abnormalplatform.com/v1";
 
-let _credentials: AbnormalCredentials | null = null;
+// Request-scoped credential store. In gateway mode the HTTP layer opens a
+// runWithCredentials({ apiToken }) context for each request. getCredentials()
+// reads from the store first, then falls back to process.env for stdio mode.
+const credStore = new AsyncLocalStorage<AbnormalCredentials>();
 
 /**
- * Resolve credentials from environment variables.
- * Returns null if the required variable is absent.
+ * Run fn inside a request-scoped credential context.
+ * Called once per HTTP request in gateway mode before the MCP transport layer.
+ */
+export function runWithCredentials<T>(creds: AbnormalCredentials, fn: () => T): T {
+  return credStore.run(creds, fn);
+}
+
+/**
+ * Resolve credentials: scoped store takes priority, then env fallback.
+ * Returns null if neither is available.
  */
 export function getCredentials(): AbnormalCredentials | null {
+  const scoped = credStore.getStore();
+  if (scoped?.apiToken) return scoped;
   const apiToken = process.env.ABNORMAL_API_TOKEN;
   if (!apiToken) {
     logger.warn("Missing ABNORMAL_API_TOKEN environment variable");
@@ -148,9 +163,3 @@ export async function abnormalRequest<T>(
   throw new Error(`Abnormal Security API error (${response.status}): ${errorMessage}`);
 }
 
-/**
- * Reset cached credentials (useful for testing or credential rotation).
- */
-export function resetCredentials(): void {
-  _credentials = null;
-}
