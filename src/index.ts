@@ -36,6 +36,7 @@ import { messageTools, handleMessageTool } from "./domains/messages.js";
 import { remediationTools, handleRemediationTool } from "./domains/remediation.js";
 import { abuseTools, handleAbuseTool } from "./domains/abuse.js";
 import { caseTools, handleCaseTool } from "./domains/cases.js";
+import { registerResourceHandlers } from "./resources.js";
 import { runWithCredentials } from "./utils/client.js";
 import { logger } from "./utils/logger.js";
 
@@ -168,8 +169,11 @@ function getAllDomainTools(): Tool[] {
 function createMcpServer(): Server {
   const server = new Server(
     { name: "abnormal-mcp", version: "1.0.0" },
-    { capabilities: { tools: {} } }
+    { capabilities: { tools: {}, resources: {} } }
   );
+
+  // MCP Apps (SEP-1865): serve the ui:// threat-card resource.
+  registerResourceHandlers(server);
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const domainTools = getAllDomainTools();
