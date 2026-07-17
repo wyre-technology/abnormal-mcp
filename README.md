@@ -46,6 +46,17 @@ This server uses a decision-tree architecture. Start by calling `abnormal_naviga
 | `abnormal_cases_list` | List active security investigation cases |
 | `abnormal_cases_get` | Get details of a specific case |
 
+### Interactive Threat Card (MCP Apps)
+
+- `abnormal_threats_get` renders as an interactive threat card in MCP Apps
+  hosts (Claude Desktop/web): subject, sender, attack classification,
+  remediation status, and the messages in the threat. The card is read-only —
+  remediation stays a deliberate, model-mediated action. Plain-JSON behavior
+  is unchanged in other hosts. Neutral by default, brandable via
+  `window.__BRAND__` injection or `MCP_BRAND_*` env vars (`MCP_BRAND_NAME`,
+  `MCP_BRAND_LOGO_URL`, `MCP_BRAND_PRIMARY_COLOR`, `MCP_BRAND_ACCENT_COLOR`,
+  `MCP_BRAND_BG`, `MCP_BRAND_TEXT`) — no rebuild needed.
+
 ## Authentication
 
 Abnormal Security uses Bearer token authentication.
@@ -92,6 +103,7 @@ npm install
 npm run dev          # watch mode
 npm test             # run tests
 npm run typecheck    # TypeScript type check
+npm run build:ui     # rebuild the MCP Apps card bundle (only needed when ui/ changes)
 ```
 
 ## License

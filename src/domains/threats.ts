@@ -5,6 +5,7 @@
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { buildThreatCard, THREAT_CARD_META } from "../card.builder.js";
 import { abnormalRequest } from "../utils/client.js";
 import { logger } from "../utils/logger.js";
 
@@ -36,6 +37,7 @@ export const threatTools: Tool[] = [
     name: "abnormal_threats_get",
     description:
       "Get detailed information about a specific threat case by ID. Returns threat details including classification, severity, and related message IDs.",
+    _meta: THREAT_CARD_META,
     inputSchema: {
       type: "object",
       properties: {
@@ -103,8 +105,18 @@ export async function handleThreatTool(
         `/threats/${encodeURIComponent(threatId)}`
       );
 
+      // MCP Apps: attach the normalized card payload the ui:// threat card
+      // renders from. Best-effort — a missing card just means no UI surface.
+      let payload: Record<string, unknown> = threat;
+      try {
+        const card = buildThreatCard(threat);
+        if (card) payload = { ...threat, _card: card };
+      } catch {
+        // Card building must never affect the tool result.
+      }
+
       return {
-        content: [{ type: "text", text: JSON.stringify(threat, null, 2) }],
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
       };
     }
 
